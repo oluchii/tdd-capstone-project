@@ -1,0 +1,48 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build_frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker frontend image
+        run: |
+          cd app
+          docker build -t ghcr.io/oluchii/scalagos-capstone-frontend:latest .
+          docker push ghcr.io/oluchii/scalagos-capstone-frontend:latest
+
+build_backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Build and push Docker backend image
+        run: |
+          cd server
+          docker build --build-arg  ATLAS_URL=${{ secrets.ATLAS_URL }} -t backend .
+          docker tag backend ghcr.io/oluchii/scalagos-capstone-backend:latest
+
+      - name: push backend image
+        run: |
+      - name: push backend image
+        run: |
+          docker push ghcr.io/oluchii/scalagos-capstone-backend:latest
+      # Optional: Enable the following step to trigger a Render deployment automatically after a successful build.
+      - name: Render Deploy
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
