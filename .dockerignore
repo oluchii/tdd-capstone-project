@@ -5,5 +5,4 @@ node_modules/
 .git/
 
 # Docker files
-Dockerfile*
 .dockerignore
