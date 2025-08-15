@@ -42,7 +42,8 @@ build_backend:
       - name: push backend image
         run: |
           docker push ghcr.io/oluchii/scalagos-capstone-backend:latest
-      # Optional: Enable the following step to trigger a Render deployment automatically after a successful build.
+    
+    # The following step triggers a Render deployment automatically after a successful build.
       - name: Render Deploy
         run: |
           curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
