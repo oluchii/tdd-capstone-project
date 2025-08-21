@@ -3,33 +3,59 @@ name: Build and Deploy Docker Images
 on:
   push:
     branches:
-      - main  # Trigger workflow when pushing to the main branch
+      - main 
 
 jobs:
-  build_and_deploy:
-    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
+  build_and_push_frontend:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2  # Checks out the code from the repository
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3  
+        uses: actions/checkout@v2
 
       - name: Log in to Docker Registry
-        uses: docker/login-action@v3  
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}  
-          password: ${{ secrets.DOCKER_TOKEN }}     
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}"" --password-stdin
 
-      - name: Build and push frontend image
-        working-directory: ./app  # Navigate to the frontend directory
+      - name: Build Docker image for frontend
         run: |
-          docker build -t luuyifei/scalagos-capstone:latest .  # Build the frontend Docker image
-          docker push luuyifei/scalagos-capstone:latest       # Push the frontend Docker image to the registry
+          cd app 
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone:latest .
 
-      - name: Build and push backend image
-        working-directory: ./server  
+      - name: Push Docker image for frontend to Docker Registry
         run: |
-          docker build --build-arg ATLAS_URI="${{ secrets.MONGODB_URI }}" -t luuyifei/scalagos-capstone-backend:latest .  # Build backend Docker image, passing MongoDB URI as build argument
-          docker push luuyifei/scalagos-capstone-backend:latest  # Push the backend Docker image to the registry
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone:latest
+
+  build_and_push_backend:
+    runs-on: ubuntu-latest
+    needs: build_and_push_frontend 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Registry
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker image for backend
+        run: |
+          cd server
+          docker build --build-arg ATLAS_URI="${{ secrets.ATLAS_URI }}" -t "${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone-backend:latest" .
+
+      - name: Push Docker image for backend to Docker Registry
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone-backend:latest
+
+  deploy_to_render:
+    runs-on: ubuntu-latest
+    needs: build_and_push_backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Render
+        run: echo "${{ secrets.RENDER_TOKEN }}" | docker login -u "${{ secrets.RENDER_USERNAME }}" --password-stdin
+
+      - name: Deploy to Render
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
