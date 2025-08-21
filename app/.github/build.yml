@@ -1,0 +1,52 @@
+name: Build and Deploy Docker Images
+
+on:
+  push:
+    branches:
+      - main  # Trigger workflow on push to the main branch
+
+jobs:
+  # Frontend Build and Push to Custom Docker Registry
+  build_and_push_frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Registry
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build Docker image for frontend
+        run: |
+          cd app  # Go to your frontend directory
+          docker build -t luuyifei/scalagos-capstone:latest .
+
+      - name: Push Docker image for frontend to Docker Registry
+        run: |
+          docker push luuyifei/scalagos-capstone:latest
+
+  # Backend Build and Push to Custom Docker Registry
+  build_and_push_backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Registry
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build Docker image for backend
+        run: |
+          cd server  # Go to your backend directory
+          docker build --build-arg ATLAS_URI="${{ secrets.ATLAS_URI }}" -t luuyifei/scalagos-capstone-backend:latest .
+
+      - name: Push Docker image for backend to Docker Registry
+        run: |
+          docker push luuyifei/scalagos-capstone-backend:latest
+
+      # Trigger Render Deployment after Build Success (optional)
+      - name: Trigger Render Deployment
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
