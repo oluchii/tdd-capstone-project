@@ -54,5 +54,5 @@ jobs:
         run: docker push luuyifei/scalagos-capstone-backend:latest
 
       - name: Trigger Render Deployment
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
+        if: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
