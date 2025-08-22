@@ -53,9 +53,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Log in to Render
-        run: echo "${{ secrets.RENDER_TOKEN }}" | docker login -u "${{ secrets.RENDER_USERNAME }}" --password-stdin
-
       - name: Deploy to Render
         run: |
           curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
