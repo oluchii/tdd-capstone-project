@@ -3,30 +3,59 @@ name: Build and Deploy Docker Images
 on:
   push:
     branches:
-      - main
+      - main 
 
 jobs:
-  build_and_deploy:
+  build_and_push_frontend:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Log in to Docker Registry
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build Docker image for frontend
+        run: |
+          cd app 
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone:latest .
+
+      - name: Push Docker image for frontend to Docker Registry
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone:latest
+
+  build_and_push_backend:
+    runs-on: ubuntu-latest
+    needs: build_and_push_frontend 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Log in to Docker Registry
-        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Build and push frontend image
-        working-directory: ./app
+      - name: Build Docker image for backend
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/scalagos-capstone:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/scalagos-capstone:latest
+          cd server
+          docker build --build-arg ATLAS_URI="${{ secrets.ATLAS_URI }}" -t "${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone-backend:latest" .
 
-      - name: Build and push backend image
-        working-directory: ./server
+      - name: Push Docker image for backend to Docker Registry
         run: |
-          docker build --build-arg ATLAS_URI="${{ secrets.MONGODB_URI }}" -t ${{ secrets.DOCKER_USERNAME }}/scalagos-capstone-backend:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/scalagos-capstone-backend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/scalagos-capstone-backend:latest
+
+  deploy_to_render:
+    runs-on: ubuntu-latest
+    needs: build_and_push_backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Render
+        run: echo "${{ secrets.RENDER_TOKEN }}" | docker login -u "${{ secrets.RENDER_USERNAME }}" --password-stdin
+
+      - name: Deploy to Render
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
